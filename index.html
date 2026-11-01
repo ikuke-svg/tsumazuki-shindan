@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>べんきょう つまずき診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdf8f1;
+    --card: #ffffff;
+    --text: #4a3f35;
+    --sub: #8a7c70;
+    --main: #f29e6b;
+    --main-dark: #e07f45;
+    --soft: #fde8d8;
+    --line: #06c755;
+    --border: #f0e4d6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; min-height: 100vh; }
+  .card {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 22px;
+    box-shadow: 0 6px 0 var(--border);
+  }
+  .hidden { display: none; }
+  h1 { font-size: 26px; margin: 8px 0 12px; text-align: center; font-weight: 800; }
+  h2 { font-size: 20px; margin: 0 0 16px; }
+  .emoji { font-size: 56px; text-align: center; line-height: 1.2; }
+  .lead { text-align: center; color: var(--sub); margin: 0 0 24px; }
+  .btn {
+    display: block; width: 100%;
+    padding: 16px; border: none; border-radius: 999px;
+    font: inherit; font-weight: 700; font-size: 17px;
+    cursor: pointer; transition: transform .1s;
+  }
+  .btn:active { transform: translateY(2px); }
+  .btn-main { background: var(--main); color: #fff; box-shadow: 0 4px 0 var(--main-dark); }
+  .btn-line { background: var(--line); color: #fff; box-shadow: 0 4px 0 #04a446; text-decoration: none; text-align: center; }
+  .btn-ghost { background: transparent; color: var(--sub); margin-top: 12px; font-size: 15px; }
+
+  /* 質問画面 */
+  .progress { height: 10px; background: var(--soft); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .progress-bar { height: 100%; width: 0; background: var(--main); border-radius: 999px; transition: width .3s; }
+  .count { font-size: 14px; color: var(--sub); text-align: right; margin-bottom: 16px; }
+  .question { font-size: 19px; font-weight: 700; margin: 0 0 24px; min-height: 3.4em; }
+  .choice {
+    display: block; width: 100%; text-align: left;
+    padding: 16px 18px; margin-bottom: 12px;
+    background: #fff; border: 2px solid var(--border); border-radius: 16px;
+    font: inherit; font-size: 16px; color: var(--text); cursor: pointer;
+  }
+  .choice:hover { border-color: var(--main); background: #fffaf6; }
+
+  /* 結果画面 */
+  .result-label { text-align: center; color: var(--sub); font-size: 14px; margin: 0; }
+  .result-name { text-align: center; font-size: 26px; font-weight: 800; color: var(--main-dark); margin: 4px 0 8px; }
+  .result-catch { text-align: center; font-weight: 700; margin: 0 0 20px; }
+  .box { background: var(--soft); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; }
+  .box h3 { font-size: 15px; margin: 0 0 4px; }
+  .box p { margin: 0; }
+  .closing { text-align: center; margin: 24px 0 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- スタート画面 -->
+  <section id="start" class="card">
+    <div class="emoji">🧭</div>
+    <h1>べんきょう<br>つまずき診断</h1>
+    <p class="lead">12問・2分で、<br>きみの勉強のつまずきタイプがわかるよ</p>
+    <button class="btn btn-main" onclick="startQuiz()">はじめる</button>
+  </section>
+
+  <!-- 質問画面 -->
+  <section id="quiz" class="card hidden">
+    <div class="progress"><div id="bar" class="progress-bar"></div></div>
+    <div id="count" class="count"></div>
+    <p id="question" class="question"></p>
+    <button class="choice" onclick="answer(2)">⭕ あてはまる</button>
+    <button class="choice" onclick="answer(1)">🔺 ちょっとあてはまる</button>
+    <button class="choice" onclick="answer(0)">❌ あてはまらない</button>
+    <button id="back" class="btn btn-ghost" onclick="goBack()">← ひとつ前にもどる</button>
+  </section>
+
+  <!-- 結果画面 -->
+  <section id="result" class="card hidden">
+    <div id="result-body"></div>
+    <p class="closing">きみに合った勉強のやり方を、いっしょに見つけよう。<br>気になったら気軽にLINEで相談してね</p>
+    <a id="line-btn" class="btn btn-line" href="#" onclick="openLine(event)">LINEで相談する</a>
+    <button class="btn btn-ghost" onclick="restart()">もう一度やる</button>
+  </section>
+
+</div>
+
+<script>
+// ===== ここを直せば中身が変わる =====
+
+// LINEのURL（決まったら差し替える。空のままなら「準備中」と表示）
+const LINE_URL = "";
+
+// 4つのタイプ
+const TYPES = {
+  A: {
+    emoji: "🗺️",
+    name: "やり方まいごタイプ",
+    catch: "やる気はある。足りないのは「やり方」だけ",
+    looks: "がんばっているのに点数につながらず、モヤモヤしがち",
+    step: "次のテスト範囲で「ワークの同じページを2回解く」だけやってみよう"
+  },
+  B: {
+    emoji: "🚪",
+    name: "スタートまいごタイプ",
+    catch: "全部わからないように見えて、実は「できる」がちゃんとある",
+    looks: "わからないところが多すぎて、どこから手をつければいいか止まってしまう",
+    step: "教科書の目次を見て、「これはわかる」に○をつけてみよう"
+  },
+  C: {
+    emoji: "🏃",
+    name: "スタートダッシュタイプ",
+    catch: "始める力はバッチリ。続く仕組みがあれば強い",
+    looks: "計画を立てるのは得意。でも続かなくて、自分を責めてしまう",
+    step: "「1日5分だけ」と決めて、できた日にカレンダーに○をつけよう"
+  },
+  D: {
+    emoji: "🤔",
+    name: "なんで？タイプ",
+    catch: "「なんで？」と思えるのは、考える力がある証拠",
+    looks: "意味がわからないことには、やる気がわかない",
+    step: "好きなこと（ゲーム、スポーツなど）で、その教科が使われているところを1つ探してみよう"
+  },
+  NONE: {
+    emoji: "🌱",
+    name: "マイペースタイプ",
+    catch: "今は大きなつまずきは少なめ",
+    looks: "自分なりのペースで勉強できている",
+    step: "今のやり方で「一番うまくいっていること」を1つ書き出してみよう"
+  }
+};
+
+// 質問12問（type は A〜D）
+const QUESTIONS = [
+  { type: "A", text: "勉強しようと机に向かっても、何をすればいいか迷うことがある" },
+  { type: "A", text: "教科書を読んだりノートを見返したりしているのに、テストで点につながらない" },
+  { type: "A", text: "友だちがどうやって勉強しているのか、ちょっと気になる" },
+  { type: "B", text: "授業がわからなくなったのが、いつからかもう思い出せない" },
+  { type: "B", text: "宿題やワークを開くと、量が多くて手が止まる" },
+  { type: "B", text: "「どこがわからないの？」と聞かれても、うまく答えられない" },
+  { type: "C", text: "テスト前は「今回こそやるぞ」と思って計画を立てる" },
+  { type: "C", text: "最初の2〜3日はがんばれるけど、だんだんやらなくなる" },
+  { type: "C", text: "気づいたらスマホやゲームの時間になっていることが多い" },
+  { type: "D", text: "「これって将来なんの役に立つの？」と思うことがある" },
+  { type: "D", text: "好きなことや興味があることなら、時間を忘れて調べられる" },
+  { type: "D", text: "授業中、なんのためにやっているのかわからなくて、ぼーっとしてしまう" }
+];
+
+// ===== ここから下は動きの部分 =====
+
+let order = [];   // シャッフルした質問の順番
+let answers = []; // 各質問の点数
+let current = 0;
+
+function show(id) {
+  ["start", "quiz", "result"].forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
+  window.scrollTo(0, 0);
+}
+
+function shuffle(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz() {
+  order = shuffle(QUESTIONS);
+  answers = [];
+  current = 0;
+  show("quiz");
+  renderQuestion();
+}
+
+function renderQuestion() {
+  document.getElementById("question").textContent = order[current].text;
+  document.getElementById("count").textContent = `${current + 1} / ${order.length}`;
+  document.getElementById("bar").style.width = `${(current / order.length) * 100}%`;
+  document.getElementById("back").style.visibility = current === 0 ? "hidden" : "visible";
+}
+
+function answer(point) {
+  answers[current] = point;
+  current++;
+  if (current < order.length) renderQuestion();
+  else showResult();
+}
+
+function goBack() {
+  if (current > 0) { current--; renderQuestion(); }
+}
+
+// 判定：一番高いタイプ。同点は上位2つまで。全部2点以下ならマイペース
+function judge() {
+  const score = { A: 0, B: 0, C: 0, D: 0 };
+  order.forEach((q, i) => { score[q.type] += answers[i]; });
+  const max = Math.max(...Object.values(score));
+  if (max <= 2) return ["NONE"];
+  return Object.keys(score).filter(t => score[t] === max).slice(0, 2);
+}
+
+function showResult() {
+  const types = judge();
+  const html = types.map(t => {
+    const r = TYPES[t];
+    return `
+      <div class="emoji">${r.emoji}</div>
+      <p class="result-label">きみは…</p>
+      <p class="result-name">${r.name}</p>
+      <p class="result-catch">${r.catch}</p>
+      <div class="box"><h3>よくある様子</h3><p>${r.looks}</p></div>
+      <div class="box"><h3>今日からできる一歩</h3><p>${r.step}</p></div>`;
+  }).join(`<p class="result-catch">＋</p>`);
+  document.getElementById("result-body").innerHTML = html;
+  show("result");
+}
+
+function openLine(e) {
+  if (!LINE_URL) {
+    e.preventDefault();
+    alert("LINEは準備中です");
+    return;
+  }
+  e.currentTarget.href = LINE_URL;
+}
+
+function restart() { show("start"); }
+</script>
+</body>
+</html>
